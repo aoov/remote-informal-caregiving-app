@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {SafeAreaView, Text} from 'react-native';
+import {SafeAreaView} from 'react-native';
 import {PaperProvider, BottomNavigation} from 'react-native-paper';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {MaterialCommunityIcons} from "@expo/vector-icons";
@@ -19,7 +19,7 @@ function AppLayout() {
                 <BottomNavigation.Bar
                     navigationState={state}
                     safeAreaInsets={insets}
-                    onTabPress={({route, preventDefault}) => {
+                    onTabPress={({route}) => {
                         const event = navigation.emit({
                             type: 'tabPress',
                             target: route.key,
