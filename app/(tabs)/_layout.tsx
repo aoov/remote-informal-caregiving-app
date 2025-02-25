@@ -1,9 +1,8 @@
 import * as React from 'react';
-import {SafeAreaView} from 'react-native';
 import {PaperProvider, BottomNavigation} from 'react-native-paper';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {MaterialCommunityIcons} from "@expo/vector-icons";
-import HomeScreen from './index';
+import HomeScreen from './dashboard';
 import AlertsScreen from './alerts';
 import ProfileScreen from './profile';
 
@@ -15,10 +14,10 @@ function AppLayout() {
             screenOptions={{
                 headerShown: false,
             }}
-            tabBar={({navigation, state, descriptors, insets}) => (
+            tabBar={({navigation, state, descriptors}) => (
                 <BottomNavigation.Bar
                     navigationState={state}
-                    safeAreaInsets={insets}
+                    safeAreaInsets={{top: 0, bottom: 0, left: 0, right: 0}}
                     onTabPress={({route}) => {
                         const event = navigation.emit({
                             type: 'tabPress',
@@ -66,7 +65,7 @@ function AppLayout() {
                 name="Profile"
                 component={ProfileScreen}
                 options={{
-                    tabBarLabel: 'Profile', // Ensure this is a string
+                    tabBarLabel: 'Profile',
                     tabBarIcon: ({color, size}) => (
                         <MaterialCommunityIcons name="account" color={color} size={size}/>
                     ),
@@ -78,10 +77,8 @@ function AppLayout() {
 
 export default function RootLayout() {
     return (
-        <SafeAreaView style={{flex: 1}}>
             <PaperProvider>
                 <AppLayout/>
             </PaperProvider>
-        </SafeAreaView>
     );
 }
