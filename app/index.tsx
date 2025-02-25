@@ -3,13 +3,19 @@ import {Button, PaperProvider, Snackbar, Text, TextInput} from "react-native-pap
 import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "@firebase/auth";
 import {useTheme} from 'react-native-paper';
 import {useState} from "react";
-import {auth} from "@/firebase-config"
 import {router} from "expo-router";
 import {SafeAreaProvider} from "react-native-safe-area-context";
 import {FirebaseError} from "@firebase/util";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
+import { styled } from 'nativewind'
 
 //LOGIN PAGE
+
+const StyledView = styled(View)
+const StyledSafeAreaProvider = styled(SafeAreaProvider)
+const StyledText = styled(Text)
+const StyledTextInput = styled(TextInput)
+
 
 export default function Index() {
     const theme = useTheme();
@@ -63,20 +69,17 @@ export default function Index() {
     return (
         <PaperProvider>
             <SafeAreaProvider>
-                <SafeAreaView style={{
+                <SafeAreaView
+                    style={{
                     flex: 1,
                     backgroundColor: theme.colors.background
                 }}>
-                    <View
-                        style={{
-                            flex: 1
-                        }}>
-                        <View>
+                    <StyledView className="flex-grow ">
+                        <StyledView className="">
                             <Text variant="displayLarge"
-                                  theme={theme}
-                                  style={{flex: 1, backgroundColor: 'black'}}>Log In</Text>
-                        </View>
-                        <TextInput
+                                  theme={theme}>Log In</Text>
+                        </StyledView>
+                        <StyledTextInput
                             mode="outlined"
                             label="Email Address"
                             value={email}
@@ -84,8 +87,8 @@ export default function Index() {
                             onChangeText={email => {
                                 setEmail(email)
                             }}
-                        ></TextInput>
-                        <TextInput
+                        ></StyledTextInput>
+                        <StyledTextInput
                             mode="outlined"
                             label="Password"
                             value={password}
@@ -102,7 +105,7 @@ export default function Index() {
                                 setPassword(password)
                             }
                             }
-                        ></TextInput>
+                        ></StyledTextInput>
                         <Button
                             mode="outlined"
                             theme={theme}
@@ -119,7 +122,7 @@ export default function Index() {
                             theme={theme}
                             action={{label: "Dismiss", onPress: () => setShowSnackbar(false)}}
                         >{snackbarText}</Snackbar>
-                    </View>
+                    </StyledView>
                 </SafeAreaView>
             </SafeAreaProvider>
         </PaperProvider>
