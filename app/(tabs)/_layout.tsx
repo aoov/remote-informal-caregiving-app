@@ -1,12 +1,16 @@
 import * as React from 'react';
-import {PaperProvider, BottomNavigation} from 'react-native-paper';
+import {PaperProvider, BottomNavigation, MD3DarkTheme, MD3LightTheme} from 'react-native-paper';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {MaterialCommunityIcons} from "@expo/vector-icons";
 import HomeScreen from './dashboard';
 import AlertsScreen from './alerts';
 import ProfileScreen from './profile';
+import {Colors} from '@/assets/Colors'
+import {app} from '@/firebase-config'
 
 const Tab = createBottomTabNavigator();
+const customDarkTheme = {...MD3DarkTheme, colors: Colors.dark};
+const customLightTheme = {...MD3LightTheme, colors: Colors.light};
 
 function AppLayout() {
     return (
@@ -77,8 +81,8 @@ function AppLayout() {
 
 export default function RootLayout() {
     return (
-            <PaperProvider>
-                <AppLayout/>
-            </PaperProvider>
+        <PaperProvider theme={MD3LightTheme} >
+            <AppLayout/>
+        </PaperProvider>
     );
 }
