@@ -6,7 +6,7 @@ import * as Localization from 'expo-localization'
 import {useEffect, useState} from "react";
 import MultiSlider from "@ptomasroos/react-native-multi-slider";
 import {db, auth} from '@/firebase-config'
-import {collection, getDoc, getDocs} from 'firebase/firestore';
+import {getDoc} from 'firebase/firestore';
 import {router} from "expo-router";
 import {doc} from "@firebase/firestore";
 
@@ -93,7 +93,7 @@ export default function Index() {
                 <StyledTextInput mode="flat" label="Full Name" value={name} onChangeText={setName}/>
                 <StyledTextInput mode="flat" label="Address" value={address} onChangeText={setAddress}/>
                 <StyledTextInput mode="flat" label="Phone Number" value={phone} onChangeText={setPhone}/>
-                <StyledTextInput mode="flat" label="Email Address" value={phone} onChangeText={setEmail}/>
+                <StyledTextInput mode="flat" label="Email Address" value={email} onChangeText={setEmail}/>
                 <StyledTextInput mode="flat" label="Physician Name" value={physicianName}
                                  onChangeText={setPhysicianName}/>
                 <StyledTextInput mode="flat" label="Physician Number" value={physicianNumber}
