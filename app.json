@@ -4,7 +4,7 @@
     "slug": "RICA",
     "version": "1.0.0",
     "orientation": "portrait",
-    "backgroundColor": "blue",
+    "backgroundColor": "#FFFFFF",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "",
@@ -33,7 +33,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true
