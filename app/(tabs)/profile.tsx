@@ -1,15 +1,14 @@
 import {ScrollView} from "react-native";
-import {ActivityIndicator, Icon, Surface, Switch, Text, TextInput} from "react-native-paper";
+import {ActivityIndicator, Button, Icon, Surface, Switch, Text, TextInput, useTheme} from "react-native-paper";
 import {styled} from 'nativewind'
-import {useTheme} from "react-native-paper";
 import * as Localization from 'expo-localization'
 import {useEffect, useState} from "react";
 import MultiSlider from "@ptomasroos/react-native-multi-slider";
-import {db, auth} from '@/firebase-config'
+import {auth, db} from '@/shared/firebase-config'
 import {getDoc} from 'firebase/firestore';
 import {router} from "expo-router";
-import {doc} from "@firebase/firestore";
-
+import {doc, setDoc} from "@firebase/firestore";
+import * as WebBrowser from 'expo-web-browser'
 
 const StyledSurface = styled(Surface)
 const StyledIcon = styled(Icon)
@@ -18,210 +17,234 @@ const StyledText = styled(Text)
 const StyledTextInput = styled(TextInput)
 const StyledMultiSlider = styled(MultiSlider)
 const StyledSwitch = styled(Switch)
+const StyledButton = styled(Button)
 
 export default function Index() {
-    const theme = useTheme();
-    const [timezone, setTimezone] = useState("");
-    const [address, setAddress] = useState('');
-    const [phone, setPhone] = useState('');
-    const [physicianName, setPhysicianName] = useState('');
-    const [physicianNumber, setPhysicianNumber] = useState('');
-    const [name, setName] = useState('');
-    const [enableHeartbeatAlert, setEnableHeartbeatAlert] = useState(false);
-    const [heartbeatUpperThreshold, setHeartbeatUpperThreshold] = useState(100);
-    const [heartbeatLowerThreshold, setHeartbeatLowerThreshold] = useState(60);
-    const [enableStepsAlert, setEnableStepsAlert] = useState(false);
-    const [stepsUpperThreshold, setStepsUpperThreshold] = useState(10000);
-    const [stepsLowerThreshold, setStepsLowerThreshold] = useState(500);
-    const [enableNoActivityAlert, setEnableNoActivityAlert] = useState(false);
-    const [noActivityUpperThreshold, setNoActivityUpperThreshold] = useState(0);
-    const [noActivityLowerThreshold, setNoActivityLowerThreshold] = useState(0);
-    const [showHeartbeatMarker, setShowHeartbeatMarker] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [email, setEmail] = useState('');
+  const theme = useTheme();
+  const [timezone, setTimezone] = useState("");
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [physicianName, setPhysicianName] = useState('');
+  const [physicianNumber, setPhysicianNumber] = useState('');
+  const [name, setName] = useState('');
+  const [enableHeartbeatAlert, setEnableHeartbeatAlert] = useState(false);
+  const [heartbeatUpperThreshold, setHeartbeatUpperThreshold] = useState(100);
+  const [heartbeatLowerThreshold, setHeartbeatLowerThreshold] = useState(60);
+  const [enableStepsAlert, setEnableStepsAlert] = useState(false);
+  const [stepsUpperThreshold, setStepsUpperThreshold] = useState(10000);
+  const [stepsLowerThreshold, setStepsLowerThreshold] = useState(500);
+  const [enableNoActivityAlert, setEnableNoActivityAlert] = useState(false);
+  const [noActivityUpperThreshold, setNoActivityUpperThreshold] = useState(0);
+  const [noActivityLowerThreshold, setNoActivityLowerThreshold] = useState(0);
+  const [showHeartbeatMarker, setShowHeartbeatMarker] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [fitbitLink, setFitbitLink] = useState('');
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try{
-                const currentUser = auth.currentUser
-                if(!currentUser){
-                    router.push('/')
-                    setLoading(false)
-                    return;
-                }
-                const userID = currentUser.uid
-                const userRef = doc(db, "users", userID)
-                const userSnap = await getDoc(userRef)
-                if (userSnap.exists()) {
-                    setName(userSnap.data().displayName)
-                    setAddress(userSnap.data().address)
-                    setPhone(userSnap.data().phone)
-                    setPhysicianName(userSnap.data().physicianName)
-                    setPhysicianNumber(userSnap.data().physicianNumber)
-
-                } else {
-                    console.log('No such document!');
-                }
-
-            }catch (error){
-                console.error(error)
-            } finally {
-                setLoading(false);
-            }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const currentUser = auth.currentUser
+        if (!currentUser) {
+          router.push('/')
+          setLoading(false)
+          return;
         }
-        fetchData()
-    }, []);
+        console.log(currentUser.uid)
+        const userID = currentUser.uid
+        const userRef = doc(db, "users", userID)
+        console.log("user ref", userRef.path)
+        const userSnap = await getDoc(userRef)
+        //Set fitbit link
+        // TODO make true PKCE code and verifier
+        const codeVerifier = "1k0v2q5t3r0i0h3s462t2l1w4d461x4n260t0v4s6w344i0w3g056y5g1k3b651h2z3n1g5x550w5n5q3j5p171d6v36726w1o3b0s5d4q3g070o5p5l203a4v6y5h0h"
+        const codeChallenge = "ziYe-mHJvMVOCEkgyoy5v9T76GyMKY0hqMkQGvophyY"
 
-    if (loading){
-        return <ActivityIndicator animating={true} size="large"></ActivityIndicator>
+        await setDoc(doc(db, "OAuth", userID), {
+          codeVerifier,
+        })
+
+        setFitbitLink("https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=23Q4VW&scope=activity+cardio_fitness+electrocardiogram+heartrate" +
+          "+irregular_rhythm_notifications+location+nutrition+oxygen_saturation+profile+respiratory_rate+settings+sleep+social+temperature" +
+          "+weight&code_challenge=" + codeChallenge +
+          "&code_challenge_method=S256&" +
+          "state=" + userID + //Attach userID to state value
+          "&redirect_uri=https%3A%2F%2Fus-central1-rica-68448.cloudfunctions.net%2FfitbitCallback")
+
+
+        if (userSnap.exists()) {
+          setName(userSnap.data().displayName)
+          setAddress(userSnap.data().address)
+          setPhone(userSnap.data().phone)
+          setPhysicianName(userSnap.data().physicianName)
+          setPhysicianNumber(userSnap.data().physicianNumber)
+
+        } else {
+          console.log('No such document!');
+        }
+
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setLoading(false);
+      }
     }
+    fetchData()
+  }, []);
+
+  if (loading) {
+    return <ActivityIndicator animating={true} size="large"></ActivityIndicator>
+  }
+
+  const toggleHeartbeatMarker = () => {
+    setShowHeartbeatMarker(!showHeartbeatMarker);
+  }
 
 
-    const toggleHeartbeatMarker = () => {
-        setShowHeartbeatMarker(!showHeartbeatMarker);
-    }
-
-    return (
-        <StyledSurface className="flex-grow flex">
-            <StyledSurface elevation={0} mode="flat" className="flex">
-                <StyledText className="" variant='displayLarge'
-                            style={{backgroundColor: theme.colors.elevation.level2}}> Profile</StyledText>
-            </StyledSurface>
-            <StyledScrollView className="flex flex-grow" style={{backgroundColor: theme.colors.surfaceVariant}} scrollEnabled={!showHeartbeatMarker}>
-                <StyledTextInput mode="flat" label="Timezone"
-                                 value={Localization.getCalendars()[0].timeZone?.toString()} onPress={() => {}}/>
-                <StyledTextInput mode="flat" label="Full Name" value={name} onChangeText={setName}/>
-                <StyledTextInput mode="flat" label="Address" value={address} onChangeText={setAddress}/>
-                <StyledTextInput mode="flat" label="Phone Number" value={phone} onChangeText={setPhone}/>
-                <StyledTextInput mode="flat" label="Email Address" value={email} onChangeText={setEmail}/>
-                <StyledTextInput mode="flat" label="Physician Name" value={physicianName}
-                                 onChangeText={setPhysicianName}/>
-                <StyledTextInput mode="flat" label="Physician Number" value={physicianNumber}
-                                 onChangeText={setPhysicianNumber}/>
-                {/* Heartbeat Alerts */}
-                <StyledSurface elevation={0} mode="flat"
-                               className="flex flex-row items-center justify-between flex-grow pt-2">
-                    <StyledText
-                        className="px-3"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        Heartbeat Alerts
-                    </StyledText>
-                    <StyledSwitch
-                    className="mr-1"
-                    value={enableHeartbeatAlert}
-                    onChange={() => setEnableHeartbeatAlert(!enableHeartbeatAlert)}
-                    />
-                </StyledSurface>
-                <StyledSurface elevation={0} mode="flat" className="flex flex-grow flex-row justify-between">
-                    <StyledText
-                        className="ml-3 mt-3"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        20
-                    </StyledText>
-                    <StyledMultiSlider
-                        values={[heartbeatLowerThreshold, heartbeatUpperThreshold]}
-                        enabledTwo={true}
-                        min={20}
-                        max={200}
-                        enableLabel={showHeartbeatMarker}
-                        onValuesChangeStart={toggleHeartbeatMarker}
-                        onValuesChangeFinish={toggleHeartbeatMarker}
-                    />
-                    <StyledText
-                        className="mr-3 mt-3"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        200
-                    </StyledText>
-                </StyledSurface>
-                {/* Heartbeat Alerts End */}
-                {/* Steps Alerts */}
-                <StyledSurface elevation={0} mode="flat"
-                               className="flex flex-row items-center justify-between flex-grow pt-2">
-                    <StyledText
-                        className="px-3"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        Steps Alerts
-                    </StyledText>
-                    <StyledSwitch
-                        className="mr-1"
-                        value={enableStepsAlert}
-                        onChange={() => setEnableStepsAlert(!enableStepsAlert)}
-                    />
-                </StyledSurface>
-                <StyledSurface elevation={0} mode="flat" className="flex flex-grow flex-row justify-between">
-                    <StyledText
-                        className="ml-3 mt-3 pr-5"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        0
-                    </StyledText>
-                    <StyledMultiSlider
-                        values={[stepsLowerThreshold, stepsUpperThreshold]}
-                        enabledTwo={true}
-                        step={250}
-                        min={0}
-                        max={20000}
-                        enableLabel={showHeartbeatMarker}
-                        onValuesChangeStart={toggleHeartbeatMarker}
-                        onValuesChangeFinish={toggleHeartbeatMarker}
-                    />
-                    <StyledText
-                        className="mr-3 mt-3"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        20,000
-                    </StyledText>
-                </StyledSurface>
-                {/* Steps Alerts End */}
-                {/* No Activity Alerts */}
-                <StyledSurface elevation={0} mode="flat"
-                               className="flex flex-row items-center justify-between flex-grow pt-2">
-                    <StyledText
-                        className="px-3"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        No Activity Alerts
-                    </StyledText>
-                    <StyledSwitch
-                        className="mr-1"
-                        value={enableNoActivityAlert}
-                        onChange={() => setEnableNoActivityAlert(!enableNoActivityAlert)}
-                    />
-                </StyledSurface>
-                <StyledSurface elevation={0} mode="flat" className="flex flex-grow flex-row ">
-                    <StyledText
-                        className="ml-3 mt-3 mr-7"
-                        variant="titleMedium"
-                        style={{color: theme.colors.onTertiaryContainer}}
-                    >
-                        Days
-                    </StyledText>
-                    <StyledMultiSlider
-                        min={1}
-                        max={30}
-                        enableLabel={showHeartbeatMarker}
-                        onValuesChangeStart={toggleHeartbeatMarker}
-                        onValuesChangeFinish={toggleHeartbeatMarker}
-                    />
-                </StyledSurface>
-                {/* Steps Alerts End */}
-
-
-
-
-            </StyledScrollView>
-
+  return (
+    <StyledSurface className="flex-grow flex">
+      <StyledSurface elevation={0} mode="flat" className="flex">
+        <StyledText className="" variant='displayLarge'
+                    style={{backgroundColor: theme.colors.elevation.level2}}> Profile</StyledText>
+        <StyledButton onPress={async () => {
+          let result = await WebBrowser.openBrowserAsync(fitbitLink)
+        }}>Link Fitbit</StyledButton>
+      </StyledSurface>
+      <StyledScrollView className="flex flex-grow" style={{backgroundColor: theme.colors.surfaceVariant}}
+                        scrollEnabled={!showHeartbeatMarker}>
+        <StyledTextInput mode="flat" label="Timezone"
+                         value={Localization.getCalendars()[0].timeZone?.toString()} onPress={() => {
+        }}/>
+        <StyledTextInput mode="flat" label="Full Name" value={name} onChangeText={setName}/>
+        <StyledTextInput mode="flat" label="Address" value={address} onChangeText={setAddress}/>
+        <StyledTextInput mode="flat" label="Phone Number" value={phone} onChangeText={setPhone}/>
+        <StyledTextInput mode="flat" label="Email Address" value={email} onChangeText={setEmail}/>
+        <StyledTextInput mode="flat" label="Physician Name" value={physicianName}
+                         onChangeText={setPhysicianName}/>
+        <StyledTextInput mode="flat" label="Physician Number" value={physicianNumber}
+                         onChangeText={setPhysicianNumber}/>
+        {/* Heartbeat Alerts */}
+        <StyledSurface elevation={0} mode="flat"
+                       className="flex flex-row items-center justify-between flex-grow pt-2">
+          <StyledText
+            className="px-3"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            Heartbeat Alerts
+          </StyledText>
+          <StyledSwitch
+            className="mr-1"
+            value={enableHeartbeatAlert}
+            onChange={() => setEnableHeartbeatAlert(!enableHeartbeatAlert)}
+          />
         </StyledSurface>
-    );
+        <StyledSurface elevation={0} mode="flat" className="flex flex-grow flex-row justify-between">
+          <StyledText
+            className="ml-3 mt-3"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            20
+          </StyledText>
+          <StyledMultiSlider
+            values={[heartbeatLowerThreshold, heartbeatUpperThreshold]}
+            enabledTwo={true}
+            min={20}
+            max={200}
+            enableLabel={showHeartbeatMarker}
+            onValuesChangeStart={toggleHeartbeatMarker}
+            onValuesChangeFinish={toggleHeartbeatMarker}
+          />
+          <StyledText
+            className="mr-3 mt-3"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            200
+          </StyledText>
+        </StyledSurface>
+        {/* Heartbeat Alerts End */}
+        {/* Steps Alerts */}
+        <StyledSurface elevation={0} mode="flat"
+                       className="flex flex-row items-center justify-between flex-grow pt-2">
+          <StyledText
+            className="px-3"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            Steps Alerts
+          </StyledText>
+          <StyledSwitch
+            className="mr-1"
+            value={enableStepsAlert}
+            onChange={() => setEnableStepsAlert(!enableStepsAlert)}
+          />
+        </StyledSurface>
+        <StyledSurface elevation={0} mode="flat" className="flex flex-grow flex-row justify-between">
+          <StyledText
+            className="ml-3 mt-3 pr-5"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            0
+          </StyledText>
+          <StyledMultiSlider
+            values={[stepsLowerThreshold, stepsUpperThreshold]}
+            enabledTwo={true}
+            step={250}
+            min={0}
+            max={20000}
+            enableLabel={showHeartbeatMarker}
+            onValuesChangeStart={toggleHeartbeatMarker}
+            onValuesChangeFinish={toggleHeartbeatMarker}
+          />
+          <StyledText
+            className="mr-3 mt-3"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            20,000
+          </StyledText>
+        </StyledSurface>
+        {/* Steps Alerts End */}
+        {/* No Activity Alerts */}
+        <StyledSurface elevation={0} mode="flat"
+                       className="flex flex-row items-center justify-between flex-grow pt-2">
+          <StyledText
+            className="px-3"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            No Activity Alerts
+          </StyledText>
+          <StyledSwitch
+            className="mr-1"
+            value={enableNoActivityAlert}
+            onChange={() => setEnableNoActivityAlert(!enableNoActivityAlert)}
+          />
+        </StyledSurface>
+        <StyledSurface elevation={0} mode="flat" className="flex flex-grow flex-row ">
+          <StyledText
+            className="ml-3 mt-3 mr-7"
+            variant="titleMedium"
+            style={{color: theme.colors.onTertiaryContainer}}
+          >
+            Days
+          </StyledText>
+          <StyledMultiSlider
+            min={1}
+            max={30}
+            enableLabel={showHeartbeatMarker}
+            onValuesChangeStart={toggleHeartbeatMarker}
+            onValuesChangeFinish={toggleHeartbeatMarker}
+          />
+        </StyledSurface>
+        {/* Steps Alerts End */}
+
+
+      </StyledScrollView>
+
+    </StyledSurface>
+  );
 }

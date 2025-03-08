@@ -4,7 +4,7 @@ import { TouchableRipple } from 'react-native-paper';
 import AvatarIcon from "react-native-paper/src/components/Avatar/AvatarIcon";
 import {styled} from "nativewind";
 import {useState} from "react";
-import {auth} from "@/firebase-config"
+import {auth} from "@/shared/firebase-config"
 import {router} from "expo-router"
 
 const StyledButton = styled(Button)

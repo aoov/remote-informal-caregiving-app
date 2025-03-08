@@ -6,7 +6,6 @@ import HomeScreen from './dashboard';
 import AlertsScreen from './alerts';
 import ProfileScreen from './profile';
 import {Colors} from '@/assets/Colors'
-import {app} from '@/firebase-config'
 
 const Tab = createBottomTabNavigator();
 const customDarkTheme = {...MD3DarkTheme, colors: Colors.dark};

@@ -8,7 +8,7 @@ import {
     MD3DarkTheme,
     MD3LightTheme, Surface, HelperText
 } from "react-native-paper";
-import {app, auth, db} from '@/firebase-config'
+import {app, auth, db} from '@/shared/firebase-config'
 import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "@firebase/auth";
 import {useTheme} from 'react-native-paper';
 import {useEffect, useState} from "react";
@@ -109,6 +109,7 @@ export default function Index() {
                 physicianName: "",
                 physicianNumber: "",
                 fitbitAuth: "",
+                fitbitRefresh: "",
                 photoURL: ""
             });
             router.push("/profile")
