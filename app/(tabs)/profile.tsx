@@ -1,4 +1,4 @@
-import {ScrollView} from "react-native";
+import {ScrollView, View} from "react-native";
 import {ActivityIndicator, Button, Icon, Surface, Switch, Text, TextInput, useTheme} from "react-native-paper";
 import {styled} from 'nativewind'
 import * as Localization from 'expo-localization'
@@ -50,10 +50,8 @@ export default function Index() {
           setLoading(false)
           return;
         }
-        console.log(currentUser.uid)
         const userID = currentUser.uid
         const userRef = doc(db, "users", userID)
-        console.log("user ref", userRef.path)
         const userSnap = await getDoc(userRef)
         //Set fitbit link
         // TODO make true PKCE code and verifier
@@ -240,11 +238,11 @@ export default function Index() {
             onValuesChangeFinish={toggleHeartbeatMarker}
           />
         </StyledSurface>
+        <StyledSurface className="my-5 h-[200] bg-transparent">
+          <View></View>
+        </StyledSurface>
         {/* Steps Alerts End */}
-
-
       </StyledScrollView>
-
     </StyledSurface>
   );
 }
