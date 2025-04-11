@@ -27,6 +27,12 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
   const [subtitle, setSubtitle] = useState("Last Updated: Never");
   const [expanded, setExpanded] = useState(false);
   const [favorite, setFavorite] = useState(false);
+  const [steps, setSteps] = useState("N/A");
+  const [hrLow, setHrLow] = useState("N/A");
+  const [hrHigh, setHrHigh] = useState("N/A");
+  const [avgHR, setAvgHR] = useState("N/A");
+  const currentDate = new Date().toISOString().split("T")[0];
+
   const [name, setName] = useState("Loading");
 
   const handleCardPress = () => {
@@ -55,6 +61,24 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
       } else {
         return;
       }
+
+      const stepsRef = doc(db, "users", userID, "steps", currentDate);
+      const stepsSnap = await getDoc(stepsRef)
+      if(stepsSnap.exists()){
+        setSteps(stepsSnap.data().value)
+      }else{
+        console.log("No steps found")
+      }
+
+      const heartRef = doc(db, "users", userID, "heartRate", currentDate);
+      const heartSnap = await getDoc(heartRef)
+      if(heartSnap.exists()){
+        setAvgHR(heartSnap.data().averageHR)
+        setHrLow(heartSnap.data().averageMin)
+        setHrHigh(heartSnap.data().averageMax)
+      }else{
+        console.log("No heart rate found")
+      }
     }
     fetchData()
   }, []);
@@ -75,13 +99,13 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
         {expanded && <StyledCardContent className="">
             <StyledView className="flex-row items-center flex pb-2">
                 <StyledIcon className="flex flex-1" source="heart-pulse" size={20}/>
-                <StyledText className="flex flex-0 pl-3 w-[20%]">Low: 54</StyledText>
-                <StyledText className="flex flex-0 pl-3 w-[20%]"> Average: 73</StyledText>
-                <StyledText className="flex flex-0 pl-3 w-[20%]">High: 120</StyledText>
+                <StyledText className="flex flex-0 pl-3 w-[20%]">Low: {hrLow}</StyledText>
+                <StyledText className="flex flex-0 pl-3 w-[20%]"> Average: {avgHR}</StyledText>
+                <StyledText className="flex flex-0 pl-3 w-[20%]">High: {hrHigh}</StyledText>
             </StyledView>
             <StyledView className="flex-row items-center">
                 <StyledIcon className="pr-3" source="shoe-print" size={20}/>
-                <StyledText className="ml-3">54 Steps</StyledText>
+                <StyledText className="ml-3">{steps} Steps</StyledText>
             </StyledView>
         </StyledCardContent>}
       </StyledCard>

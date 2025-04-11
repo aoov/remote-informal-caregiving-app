@@ -3,7 +3,7 @@ import {router, useRouter} from 'expo-router';
 import {styled} from "nativewind";
 import AvatarIcon from "react-native-paper/src/components/Avatar/AvatarIcon";
 import {DashboardComponent} from '@/component/DashboardComponent'
-import {ScrollView, View} from "react-native";
+import {RefreshControl, ScrollView, View} from "react-native";
 import {useEffect, useState} from "react";
 import {auth, db} from "@/shared/firebase-config";
 import {doc} from "@firebase/firestore";
@@ -32,7 +32,10 @@ type PrivacyToggleFields = {
 export default function Dashboard() {
   const router = useRouter();
   const [friendsList, setFriendsList] = useState<string[]>([])
-  const userSnap = null;
+  const currentDate = new Date().toISOString().split("T")[0];
+  const [steps, setSteps] = useState("N/A");
+  const [averageHeartRate, setAverageHeartRate] = useState("N/A");
+  const [refreshing, setRefreshing] = useState(false);
 
   const [privacyToggles, setPrivacyToggles] = useState<PrivacyToggleFields>({
     heartRate: true,
@@ -74,6 +77,21 @@ export default function Dashboard() {
       else{
         return;
       }
+      const stepsRef = doc(db, "users", currentUser.uid, "steps", currentDate);
+      const stepsSnap = await getDoc(stepsRef)
+      if(stepsSnap.exists()){
+        setSteps(stepsSnap.data().value)
+      }else{
+        console.log("No steps found")
+      }
+
+      const heartRef = doc(db, "users", currentUser.uid, "heartRate", currentDate);
+      const heartSnap = await getDoc(heartRef)
+      if(heartSnap.exists()){
+        setAverageHeartRate(heartSnap.data().averageHR)
+      }else{
+        console.log("No heart rate found")
+      }
     }
     fetchData()
   }, []);
@@ -83,11 +101,12 @@ export default function Dashboard() {
     <StyledSurface className="flex flex-1 justify-center align-middle h-[90%] pt-3">
       <StyledSearchbar className="mb-3" elevation={2} value={""}></StyledSearchbar>
       <StyledScrollView className="" overScrollMode="always" bouncesZoom={true}>
+        <RefreshControl refreshing={refreshing}/>
         <StyledCard className="flex flex-1 p-2 mx-2 my-3">
           <StyledText className="flex-1 text-center" variant="headlineMedium">Personal Info</StyledText>
           <StyledView className="flex flex-row mb-1">
-            <StyledText className="text-center flex-1" variant="titleLarge">104 BPM</StyledText>
-            <StyledText className="text-center flex-1" variant="titleLarge">1246 Steps</StyledText>
+            <StyledText className="text-center flex-1" variant="titleLarge">{averageHeartRate} BPM</StyledText>
+            <StyledText className="text-center pr-5 flex-1" variant="titleLarge">{steps}</StyledText>
           </StyledView>
           <StyledView className="flex flex-row ml-2">
             <StyledIcon className="" source="heart-pulse" size={30}/>
@@ -102,6 +121,7 @@ export default function Dashboard() {
               <StyledChip
                 key={field}
                 selected={privacyToggles[field]}
+                showSelectedOverlay={privacyToggles[field]}
                 onPress={() => togglePrivacy(field)}
               >
                 {toggleLabels[field]}
