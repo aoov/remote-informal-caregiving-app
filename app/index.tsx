@@ -6,7 +6,7 @@ import {
     Text,
     TextInput,
     MD3DarkTheme,
-    MD3LightTheme, Surface, HelperText
+    MD3LightTheme, Surface, HelperText, ActivityIndicator
 } from "react-native-paper";
 import {app, auth, db} from '@/shared/firebase-config'
 import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "@firebase/auth";
@@ -48,14 +48,17 @@ export default function Index() {
     const [validName, setValidName] = useState(true);
     const [validPhone, setValidPhone] = useState(true);
     const [emailInUse, setEmailInUse] = useState(false);
+    const [loading, setLoading] = useState(true);
+
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
                 router.push("/dashboard");
             }
+            setLoading(false);
         });
-        return () => unsubscribe(); // Cleanup listener on unmount
+        return () => unsubscribe();
     }, []);
     const signIn = async () => {
         try {
@@ -179,6 +182,12 @@ export default function Index() {
         setValidPhone(true)
         return true
     }
+    if (loading) {
+        return <StyledSurface className="flex flex-col h-[100%] justify-center">
+            <ActivityIndicator animating={true} size="large"></ActivityIndicator>
+        </StyledSurface>
+    }
+
 
     return (
         <PaperProvider theme={MD3LightTheme}>
