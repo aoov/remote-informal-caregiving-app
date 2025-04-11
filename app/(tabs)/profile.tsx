@@ -1,12 +1,22 @@
 import {ScrollView, View} from "react-native";
-import {ActivityIndicator, Button, Icon, Surface, Switch, Text, TextInput, useTheme} from "react-native-paper";
+import {
+  ActivityIndicator,
+  Button,
+  Icon,
+  IconButton,
+  Surface,
+  Switch,
+  Text,
+  TextInput,
+  useTheme
+} from "react-native-paper";
 import {styled} from 'nativewind'
 import * as Localization from 'expo-localization'
 import {useEffect, useState} from "react";
 import MultiSlider from "@ptomasroos/react-native-multi-slider";
 import {auth, db} from '@/shared/firebase-config'
 import {getDoc} from 'firebase/firestore';
-import {router} from "expo-router";
+import {Link, router} from "expo-router";
 import {doc, setDoc} from "@firebase/firestore";
 import * as WebBrowser from 'expo-web-browser'
 
@@ -18,6 +28,7 @@ const StyledTextInput = styled(TextInput)
 const StyledMultiSlider = styled(MultiSlider)
 const StyledSwitch = styled(Switch)
 const StyledButton = styled(Button)
+const StyledIconButton = styled(IconButton)
 
 export default function Index() {
   const theme = useTheme();
@@ -40,6 +51,7 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [fitbitLink, setFitbitLink] = useState('');
+  const [hasFitbitLinked, setHasFitbitLinked] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,7 +88,8 @@ export default function Index() {
           setPhone(userSnap.data().phone)
           setPhysicianName(userSnap.data().physicianName)
           setPhysicianNumber(userSnap.data().physicianNumber)
-
+          const fitbitAuth = String(userSnap.data().fitbitAuth)
+          setHasFitbitLinked(fitbitAuth.length != 0)
         } else {
           console.log('No such document!');
         }
@@ -91,23 +104,27 @@ export default function Index() {
   }, []);
 
   if (loading) {
-    return <ActivityIndicator animating={true} size="large"></ActivityIndicator>
+    return <StyledSurface className="flex flex-col h-[100%] justify-center">
+      <ActivityIndicator animating={true} size="large"></ActivityIndicator>
+    </StyledSurface>
   }
 
   const toggleHeartbeatMarker = () => {
     setShowHeartbeatMarker(!showHeartbeatMarker);
   }
 
-
   return (
     <StyledSurface className="flex-grow flex">
-      <StyledSurface elevation={0} mode="flat" className="flex">
+      <StyledSurface elevation={0} mode="flat" className="flex flex-row justify-between items-center">
         <StyledText className="" variant='displayLarge'
-                    style={{backgroundColor: theme.colors.elevation.level2}}> Profile</StyledText>
-        <StyledButton onPress={async () => {
-          let result = await WebBrowser.openBrowserAsync(fitbitLink)
-        }}>Link Fitbit</StyledButton>
+                    style={{backgroundColor: theme.colors.elevation.level2}}>Profile</StyledText>
+          <StyledIconButton icon="cog" animated={true} className="" onPress={() => router.push("/settings/modal")}/>
       </StyledSurface>
+      <StyledButton mode="outlined" onPress={async () => {
+        let result = await WebBrowser.openBrowserAsync(fitbitLink)
+      }}>Link Fitbit</StyledButton>
+
+
       <StyledScrollView className="flex flex-grow" style={{backgroundColor: theme.colors.surfaceVariant}}
                         scrollEnabled={!showHeartbeatMarker}>
         <StyledTextInput mode="flat" label="Timezone"
