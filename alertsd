@@ -1,0 +1,109 @@
+import React, { useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
+import { Dimensions } from 'react-native';
+
+const data = [
+    {
+        id: '1',
+        name: 'Alexis Vo',
+        heartRate: 72,
+        steps: 5400,
+        detailedData: [65, 70, 75, 80, 85, 90, 95],
+    },
+    {
+        id: '2',
+        name: 'Rory Little',
+        heartRate: 154,
+        steps: 3000,
+        detailedData: [120, 130, 140, 150, 160, 170, 180],
+    },
+];
+
+const AlertsScreen = () => {
+    const [expanded, setExpanded] = useState({});
+
+    const toggleExpand = (id) => {
+        setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    return (
+        <View style={styles.container}>
+            <FlatList
+                data={data}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <View style={styles.card}>
+                        <Text style={styles.name}>{item.name}</Text>
+                        <Text>Heart Rate: {item.heartRate} BPM</Text>
+                        <Text>Steps: {item.steps}</Text>
+                        <TouchableOpacity
+                            style={styles.button}
+                            onPress={() => toggleExpand(item.id)}
+                        >
+                            <Text style={styles.buttonText}>{expanded[item.id] ? 'Hide Details' : 'View Details'}</Text>
+                        </TouchableOpacity>
+                        {expanded[item.id] && (
+                            <LineChart
+                                data={{
+                                    labels: ['10m', '20m', '30m', '40m', '50m', '60m', '70m'],
+                                    datasets: [{ data: item.detailedData }],
+                                }}
+                                width={Dimensions.get('window').width - 40}
+                                height={200}
+                                chartConfig={{
+                                    backgroundColor: '#fff',
+                                    backgroundGradientFrom: '#fff',
+                                    backgroundGradientTo: '#fff',
+                                    decimalPlaces: 0,
+                                    color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`,
+                                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                                }}
+                                bezier
+                                style={styles.chart}
+                            />
+                        )}
+                    </View>
+                )}
+            />
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#f5f5f5',
+    },
+    card: {
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 10,
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    name: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 5,
+    },
+    button: {
+        marginTop: 10,
+        backgroundColor: '#ff5757',
+        padding: 10,
+        borderRadius: 5,
+        alignItems: 'center',
+    },
+    buttonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    chart: {
+        marginTop: 10,
+    },
+});
+
+export default AlertsScreen;
