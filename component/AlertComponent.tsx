@@ -6,7 +6,7 @@ import {useState} from "react";
 import {auth, db} from "@/shared/firebase-config"
 import {router} from "expo-router"
 import {Linking, View} from "react-native";
-import {collection, getDoc, getDocs, Timestamp, updateDoc} from "firebase/firestore";
+import {arrayUnion, collection, deleteDoc, getDoc, getDocs, Timestamp, updateDoc} from "firebase/firestore";
 import {doc} from "@firebase/firestore";
 
 const StyledButton = styled(Button)
@@ -38,6 +38,22 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
   const [backgroundColor, setBackgroundColor] = useState(theme.colors.elevation.level1);
   const [isRead, setIsRead] = useState(read);
   const [invalidNumber, setInvalidNumber] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
+
+  const addUser = async () => {
+    if (auth.currentUser) {
+      const docRef = doc(db, "users", auth.currentUser.uid)
+      try {
+        await updateDoc(docRef, {
+          friends: arrayUnion(userID)
+        })
+      } catch (error) {
+        console.log(error);
+      }
+      deleteAlert()
+    }
+  }
 
   const setRead = async (val: boolean) => {
     setIsRead(val)
@@ -62,21 +78,21 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
     setInvalidNumber(true)
   }
 
-  const phoneCall = async (phone?:string) => {
-    if(phone){
+  const phoneCall = async (phone?: string) => {
+    if (phone) {
       await Linking.openURL('telprompt:' + phone)
       return;
     }
     try {
       const docRef = doc(db, "users", userID)
       const docSnap = await getDoc(docRef);
-      let number:string = ""
+      let number: string = ""
       if (docSnap.exists()) {
         number = docSnap.data().phone
       }
-      if(number.length == 0){
+      if (number.length == 0) {
         await Linking.openURL('telprompt:' + number)
-      }else{
+      } else {
         showDialog()
       }
     } catch (error) {
@@ -96,6 +112,18 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
 
     } catch (error) {
       console.error("Error writing document: ", error);
+    }
+  }
+
+  const deleteAlert = async () => {
+    if (!auth.currentUser) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "users", auth.currentUser.uid, "alerts", alertID))
+      setDeleted(true)
+    } catch (error) {
+      console.error("Error deleting document: ", error);
     }
   }
 
@@ -129,7 +157,7 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
     if (type.includes("activity")) {
       return <StyledIcon size={32} source="sync-alert" color="green"/>
     }
-    return <StyledIcon size={32} source="cards-heart"/>
+    return <StyledIcon size={32} source="plus-thick" color="green"/>
   }
 
   const getTitle = () => {
@@ -150,6 +178,9 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
       case "activity":
         ret = ret + "No Activity"
         break;
+      case "request":
+        ret = ret + "Friend Request"
+        break;
       default:
         ret = ret + "Error"
         break;
@@ -169,21 +200,24 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
         return "Step Count Below Threshold"
       case "activity":
         return "No Activity Detected Over Threshold"
+      case "request":
+        return "Friend Request Received from " + name
       default:
         return "Error"
     }
   }
-  return (
+  return (!deleted &&
     <TouchableRipple onPress={handleCardPress}>
       <StyledCard mode="elevated" className="mx-3 mb-5"
                   style={{
-                    backgroundColor: (isRead && !expanded) ? theme.colors.outline : theme.colors.elevation.level1
+                    backgroundColor: (isRead && !expanded && type != "request") ? theme.colors.outline : theme.colors.elevation.level1
                   }}>
         <Portal>
           <Dialog visible={invalidNumber} onDismiss={hideDialog}>
             <Dialog.Title>Alert</Dialog.Title>
             <Dialog.Content>
-              <Text variant="bodyMedium">Recipient does not have a valid phone number. Please call them outside of the app</Text>
+              <Text variant="bodyMedium">Recipient does not have a valid phone number. Please call them outside of the
+                app</Text>
             </Dialog.Content>
             <Dialog.Actions>
               <Button onPress={hideDialog}>Done</Button>
@@ -197,35 +231,37 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
                              getIcon()}
                            className="flex flex-1">
           </StyledCardTitle>
-          <Menu
-            visible={menuVisible}
-            onDismiss={closeMenu}
-            anchor={
-              <StyledIconButton
-                icon="dots-vertical"
-                animated={true}
-                onPress={openMenu}
-              />
-            }>
-            <Menu.Item onPress={() => {
-              markRead(true)
-            }} title="Mark as read"/>
-            <Menu.Item onPress={() => {
-              markRead(false)
-            }} title="Mark unread"/>
-            <Menu.Item onPress={() => {
-            }} title="Delete"/>
-          </Menu>
+          {type != "request" && (
+            <Menu
+              visible={menuVisible}
+              onDismiss={closeMenu}
+              anchor={
+                <StyledIconButton
+                  icon="dots-vertical"
+                  animated={true}
+                  onPress={openMenu}
+                />
+              }>
+              <Menu.Item onPress={() => {
+                markRead(true)
+              }} title="Mark as read"/>
+              <Menu.Item onPress={() => {
+                markRead(false)
+              }} title="Mark unread"/>
+              <Menu.Item onPress={() => {
+                deleteAlert()
+              }} title="Delete"/>
+            </Menu>)}
         </StyledView>
-        {expanded && <StyledCardContent className="">
+        {expanded && type != "request" && <StyledCardContent className="">
             <StyledView className="flex gap-y-1.5 mb-3">
                 <StyledText className="text-" variant="titleMedium">{getCardText()}</StyledText>
                 <StyledText className="text-">{"Observed: " + observed}</StyledText>
                 <StyledText className="text-">{"Threshold: " + threshold}</StyledText>
             </StyledView>
-            <StyledView className="flex-row items-center justify-between flex pb-1">
+            <StyledView className="flex-row items-center justify-between flex mb-3">
                 <StyledButton mode="contained" icon="message">Message</StyledButton>
-                <StyledButton mode="contained" onPress={() =>{
+                <StyledButton mode="contained" onPress={() => {
                   phoneCall()
                 }} icon="phone" buttonColor="green">Call</StyledButton>
                 <StyledButton mode="contained" onPress={() => {
@@ -233,6 +269,21 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
                 }} icon="alert-circle" buttonColor="red">EMS</StyledButton>
             </StyledView>
         </StyledCardContent>}
+        {expanded && type == "request" && <StyledCardContent className="">
+            <StyledView className="flex gap-y-1.5 mb-3">
+                <StyledText className="text-" variant="titleMedium">{getCardText()}</StyledText>
+            </StyledView>
+            <StyledView className="flex-row items-center justify-between flex pb-1">
+                <StyledButton mode="contained" onPress={() => {
+                  deleteAlert()
+                }} icon="close" buttonColor="red">Decline</StyledButton>
+                <StyledButton mode="contained" onPress={() => {
+                  addUser()
+                }} icon="check" buttonColor="green">Accept</StyledButton>
+            </StyledView>
+        </StyledCardContent>}
+
+
       </StyledCard>
     </TouchableRipple>
   );

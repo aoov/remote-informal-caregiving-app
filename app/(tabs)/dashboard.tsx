@@ -18,6 +18,8 @@ const StyledIcon = styled(Icon)
 const StyledChip = styled(Chip)
 const StyledSearchbar = styled(Searchbar)
 const StyledDivider = styled(Divider)
+const StyledDashboardComponent = styled(DashboardComponent)
+const StyledButton = styled(Button)
 
 type PrivacyToggleFields = {
   heartRate: boolean;
@@ -70,26 +72,25 @@ export default function Dashboard() {
     const fetchData = async () => {
       const currentUserRef = doc(db, "users", currentUser.uid)
       const userSnap = await getDoc(currentUserRef)
-      if (userSnap.exists()){
+      if (userSnap.exists()) {
         const list = userSnap.data().friends || []
         setFriendsList(list)
-      }
-      else{
+      } else {
         return;
       }
       const stepsRef = doc(db, "users", currentUser.uid, "steps", currentDate);
       const stepsSnap = await getDoc(stepsRef)
-      if(stepsSnap.exists()){
+      if (stepsSnap.exists()) {
         setSteps(stepsSnap.data().value)
-      }else{
+      } else {
         console.log("No steps found")
       }
 
       const heartRef = doc(db, "users", currentUser.uid, "heartRate", currentDate);
       const heartSnap = await getDoc(heartRef)
-      if(heartSnap.exists()){
+      if (heartSnap.exists()) {
         setAverageHeartRate(heartSnap.data().averageHR)
-      }else{
+      } else {
         console.log("No heart rate found")
       }
     }
@@ -98,7 +99,7 @@ export default function Dashboard() {
 
 
   return (
-    <StyledSurface className="flex flex-1 justify-center align-middle h-[90%] pt-3">
+    <StyledSurface className="flex flex-1 justify-center align-middle h-[120%] pt-3">
       <StyledSearchbar className="mb-3" elevation={2} value={""}></StyledSearchbar>
       <StyledScrollView className="" overScrollMode="always" bouncesZoom={true}>
         <RefreshControl refreshing={refreshing}/>
@@ -129,9 +130,18 @@ export default function Dashboard() {
             ))}
           </StyledView>
         </StyledCard>
-        {friendsList.map((friend: string, i) => (
-          <DashboardComponent userID={friend} key={i}/>
-        ))}
+
+          <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
+                        onPress={() => router.push("/modals/add")}
+
+          >Add Friends</StyledButton>
+
+
+        <StyledView className="mb-2 pt-2">
+          {friendsList.map((friend: string, i) => (
+            <StyledDashboardComponent className="" userID={friend} key={i}/>
+          ))}
+        </StyledView>
         <StyledSurface className="my-5 h-[300] bg-transparent">
           <StyledView></StyledView>
         </StyledSurface>
