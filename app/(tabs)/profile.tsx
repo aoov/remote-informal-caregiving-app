@@ -118,12 +118,11 @@ export default function Index() {
       <StyledSurface elevation={0} mode="flat" className="flex flex-row justify-between items-center">
         <StyledText className="" variant='displayLarge'
                     style={{backgroundColor: theme.colors.elevation.level2}}>Profile</StyledText>
-          <StyledIconButton icon="cog" animated={true} className="" onPress={() => router.push("/settings/modal")}/>
+          <StyledIconButton icon="cog" animated={true} className="" onPress={() => router.push("/modals/modal")}/>
       </StyledSurface>
       <StyledButton mode="outlined" onPress={async () => {
         let result = await WebBrowser.openBrowserAsync(fitbitLink)
       }}>Link Fitbit</StyledButton>
-
 
       <StyledScrollView className="flex flex-grow" style={{backgroundColor: theme.colors.surfaceVariant}}
                         scrollEnabled={!showHeartbeatMarker}>
