@@ -80,7 +80,7 @@ function AppLayout() {
 
 export default function RootLayout() {
     return (
-        <PaperProvider theme={MD3LightTheme} >
+        <PaperProvider theme={MD3LightTheme}>
             <AppLayout/>
         </PaperProvider>
     );

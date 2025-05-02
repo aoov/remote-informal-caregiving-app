@@ -34,9 +34,9 @@ export default function SettingsPage() {
     }
     await setDoc(doc(collection(db, `users`, auth.currentUser.uid, "alerts")), {
       userID: "Test",
-      name: "Dad",
-      type: "stepsHigh",
-      date: Timestamp.fromDate(new Date(2025, 3, 24, 6, 21, 0, 0)),
+      name: "Tom",
+      type: "request",
+      date: Timestamp.fromDate(new Date(2025, 3, 24, 9, 21, 0, 0)),
       threshold: 4000,
       observed: 12000,
       read: false,

@@ -9,7 +9,7 @@ import {
     MD3LightTheme, Surface, HelperText, ActivityIndicator
 } from "react-native-paper";
 import {app, auth, db} from '@/shared/firebase-config'
-import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "@firebase/auth";
+import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "firebase/auth";
 import {useTheme} from 'react-native-paper';
 import {useEffect, useState} from "react";
 import {router} from "expo-router";
