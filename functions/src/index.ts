@@ -1,4 +1,5 @@
 import {onRequest, onCall} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import axios from "axios";
@@ -7,6 +8,40 @@ admin.initializeApp();
 const firestore = admin.firestore();
 
 // https://firebase.google.com/docs/functions/typescript
+
+exports.fitbitRefresher = onSchedule("every 6 hours", async () => {
+  logger.info("Running fitbit refresher...");
+  try {
+    const usersSnapshot = await firestore.collection("users").get();
+
+    const refreshTasks = usersSnapshot.docs.map(async (doc) => {
+      const userID = doc.id;
+      const refresh = doc.data().fitbitRefresh;
+      const clientID = "23Q4VW";
+      const clientSecret = "3c221d01a3b5b5ce0bcd56967aab9dfe";
+      const authHeader = "Basic " + btoa(clientID + ":" + clientSecret);
+      const structuredData = {
+        grant_type: "refresh_token",
+        client_id: clientID,
+        refresh_token: refresh,
+      };
+      const response = await axios.post("https://api.fitbit.com/oauth2/token", structuredData, {
+        headers: {
+          "Authorization": authHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+      await firestore.collection("users").doc(userID).update({
+        fitbitAuth: response.data.access_token,
+        fitbitRefresh: response.data.refresh_token,
+      });
+    });
+    await Promise.all(refreshTasks);
+    logger.info("Finished refreshing all tokens");
+  } catch (error) {
+    logger.error(error);
+  }
+});
 
 exports.fitbitCallback = onRequest(async (request, response) => {
   try {
@@ -156,9 +191,6 @@ exports.updateSteps = onCall(async (request) => {
           lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
-
-
-
   } catch (error) {
     logger.error(error);
   }
