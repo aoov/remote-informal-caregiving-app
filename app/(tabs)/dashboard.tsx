@@ -8,6 +8,8 @@ import {useEffect, useState} from "react";
 import {auth, db} from "@/shared/firebase-config";
 import {doc} from "@firebase/firestore";
 import {getDoc} from "firebase/firestore";
+import { useNavigation } from '@react-navigation/native';
+import { useLocalSearchParams } from "expo-router";
 
 const StyledSurface = styled(Surface)
 const StyledScrollView = styled(ScrollView)
@@ -30,7 +32,6 @@ type PrivacyToggleFields = {
   physicianInfo: boolean;
 };
 
-
 export default function Dashboard() {
   const router = useRouter();
   const [friendsList, setFriendsList] = useState<string[]>([])
@@ -38,6 +39,9 @@ export default function Dashboard() {
   const [steps, setSteps] = useState("N/A");
   const [averageHeartRate, setAverageHeartRate] = useState("N/A");
   const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation();
+  const { x } = useLocalSearchParams();
+
 
   const [privacyToggles, setPrivacyToggles] = useState<PrivacyToggleFields>({
     heartRate: true,
@@ -69,6 +73,10 @@ export default function Dashboard() {
       router.push('/')
       return;
     }
+    if (x){
+      // @ts-ignore
+      navigation.navigate("Profile")
+    }
     const fetchData = async () => {
       const currentUserRef = doc(db, "users", currentUser.uid)
       const userSnap = await getDoc(currentUserRef)
@@ -98,6 +106,7 @@ export default function Dashboard() {
   }, []);
 
 
+  // @ts-ignore
   return (
     <StyledSurface className="flex flex-1 justify-center align-middle h-[120%] pt-3">
       <StyledSearchbar className="mb-3" elevation={2} value={""}></StyledSearchbar>
@@ -131,11 +140,9 @@ export default function Dashboard() {
           </StyledView>
         </StyledCard>
 
-          <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
-                        onPress={() => router.push("/modals/add")}
-
-          >Add Friends</StyledButton>
-
+        <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
+                      onPress={() => router.push("/modals/add")}
+        >Add Friends</StyledButton>
 
         <StyledView className="mb-2 pt-2">
           {friendsList.map((friend: string, i) => (
