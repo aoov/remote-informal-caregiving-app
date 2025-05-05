@@ -77,24 +77,6 @@ export default function Dashboard() {
     return difference <= 30 * 1000; // 30 seconds in milliseconds
   }
 
-  const updateDataFor = async (target: string) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      router.push('/')
-      return;
-    }
-    const userRef = doc(db, "users", target)
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) {
-      return;
-    }
-    const lastQuery = userSnap.data().lastQuery
-    if (lastQuery && !isWithin30Seconds(lastQuery)) {
-      console.log("Updating data for " + target);
-      updateData(currentUser.uid, target)
-    }
-  }
-
   // Gets friends list
   const fetchData = async () => {
     const currentUser = auth.currentUser;
@@ -102,8 +84,8 @@ export default function Dashboard() {
       router.push('/')
       return;
     }
-    console.log("Updating data for self");
-    updateDataFor(currentUser.uid)
+    updateData(currentUser.uid)
+
     const currentUserRef = doc(db, "users", currentUser.uid)
     const userSnap = await getDoc(currentUserRef)
     console.log("Fetching friends list");
@@ -111,7 +93,7 @@ export default function Dashboard() {
       const list = userSnap.data().friends || []
       console.log("Updating friends list data")
       list.forEach((friend: string) => {
-        updateDataFor(friend);
+        updateData(friend);
       });
 
       setFriendsList(list)
@@ -149,43 +131,50 @@ export default function Dashboard() {
   }, []);
 
   const refresh = () => {
-    fetchData()
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
   }
 
   // Calls steps and heart data updater
-  const updateData = (requester: string, requested: string) => {
-    setRefreshing(true);
+  const updateData = (requested: string) => {
     setTimeout(async () => {
       if (!auth.currentUser) {
-        setRefreshing(false);
         return;
       }
+      const userRef = doc(db, "users", requested);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return;
+      }
+      const requester = auth.currentUser.uid;
+      const lastQuery = userSnap.data().lastQuery
+      if ((lastQuery && isWithin30Seconds(lastQuery))) {
+        return;
+      }
+
+
       try {
         const updateSteps = httpsCallable(functions, "updateSteps");
         await updateSteps({
           requester: requester,
           userID: requested,
         })
-        console.log("updateSteps called");
-
+        console.log("updateSteps called for " + requested + " by " + requester);
         const updateHeart = httpsCallable(functions, "updateHeart");
         await updateHeart({
           requester: requester,
           userID: requested,
         })
-        console.log("updateHeart called");
-
+        console.log("updateHeart called for " + requested + " by " + requester);
         const currentUser = auth.currentUser;
         if (!currentUser) {
           router.push('/');
           return;
         }
         const userRef = doc(db, "users", requested);
-        await updateDoc(userRef, { lastQuery: Timestamp.now() });
+        await updateDoc(userRef, {lastQuery: Timestamp.now()});
       } catch (error) {
         console.error(error);
-      } finally {
-        setRefreshing(false);
       }
     }, 2000);
   };
@@ -195,8 +184,9 @@ export default function Dashboard() {
   return (
     <StyledSurface className="flex flex-1 justify-center align-middle h-[120%] pt-3">
       <StyledSearchbar className="mb-3" elevation={2} value={""}></StyledSearchbar>
-      <StyledScrollView className="" overScrollMode="always" bouncesZoom={true}>
+      <StyledScrollView className="" overScrollMode="always" bouncesZoom={true} refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={refresh}/>
+      }>
         <StyledCard className="flex flex-1 p-2 mx-2 my-3">
           <StyledText className="flex-1 text-center" variant="headlineMedium">Personal Info</StyledText>
           <StyledView className="flex flex-row mb-1">
