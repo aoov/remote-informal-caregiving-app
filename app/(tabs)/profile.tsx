@@ -15,7 +15,7 @@ import * as Localization from 'expo-localization'
 import {useEffect, useState} from "react";
 import MultiSlider from "@ptomasroos/react-native-multi-slider";
 import {auth, db} from '@/shared/firebase-config'
-import {getDoc} from 'firebase/firestore';
+import {getDoc, updateDoc} from 'firebase/firestore';
 import {Link, router} from "expo-router";
 import {doc, setDoc} from "@firebase/firestore";
 import * as WebBrowser from 'expo-web-browser'
@@ -46,13 +46,47 @@ export default function Index() {
   const [stepsLowerThreshold, setStepsLowerThreshold] = useState(500);
   const [enableNoActivityAlert, setEnableNoActivityAlert] = useState(false);
   const [noActivityUpperThreshold, setNoActivityUpperThreshold] = useState(0);
-  const [noActivityLowerThreshold, setNoActivityLowerThreshold] = useState(0);
   const [showHeartbeatMarker, setShowHeartbeatMarker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [fitbitLink, setFitbitLink] = useState('');
   const [hasFitbitLinked, setHasFitbitLinked] = useState(false);
 
+
+  const saveData = async () => {
+    if (loading) {
+      return;
+    }
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      router.push('/')
+      setLoading(false)
+      return;
+    }
+    const userID = currentUser.uid
+    const userRef = doc(db, "users", userID)
+    try {
+      await updateDoc(userRef, {
+        address: address,
+        displayName: name,
+        email: email,
+        phone: phone,
+        physicianName: physicianName,
+        physicianNumber: physicianNumber,
+        heartAlerts: enableHeartbeatAlert,
+        activityAlerts: enableNoActivityAlert,
+        stepAlerts: enableStepsAlert,
+        heartThresholds: [heartbeatLowerThreshold, heartbeatUpperThreshold],
+        stepThresholds: [stepsLowerThreshold, stepsUpperThreshold],
+        activityThreshold: [noActivityUpperThreshold]
+      })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+
+  //Handles data loading
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -80,20 +114,25 @@ export default function Index() {
           "&code_challenge_method=S256&" +
           "state=" + userID + //Attach userID to state value
           "&redirect_uri=https%3A%2F%2Fus-central1-rica-68448.cloudfunctions.net%2FfitbitCallback")
-
-
         if (userSnap.exists()) {
           setName(userSnap.data().displayName)
           setAddress(userSnap.data().address)
           setPhone(userSnap.data().phone)
           setPhysicianName(userSnap.data().physicianName)
           setPhysicianNumber(userSnap.data().physicianNumber)
+          setStepsLowerThreshold(userSnap.data().stepThresholds[0])
+          setStepsUpperThreshold(userSnap.data().stepThresholds[1])
+          setHeartbeatUpperThreshold(userSnap.data().heartThresholds[1])
+          setHeartbeatLowerThreshold(userSnap.data().heartThresholds[0])
+          setNoActivityUpperThreshold(userSnap.data().activityThreshold[0])
+          setEnableNoActivityAlert(userSnap.data().activityAlerts)
+          setEnableStepsAlert(userSnap.data().stepAlerts)
+          setEnableHeartbeatAlert(userSnap.data().heartAlerts)
           const fitbitAuth = String(userSnap.data().fitbitAuth)
           setHasFitbitLinked(fitbitAuth.length != 0)
         } else {
           console.log('No such document!');
         }
-
       } catch (error) {
         console.error(error)
       } finally {
@@ -103,6 +142,15 @@ export default function Index() {
     fetchData()
   }, []);
 
+  useEffect(() => {
+    saveData()
+  }, [address, email, name, phone, physicianName, physicianNumber,
+    enableStepsAlert, enableNoActivityAlert, enableHeartbeatAlert,
+    heartbeatUpperThreshold, heartbeatLowerThreshold, stepsUpperThreshold,
+    stepsLowerThreshold, noActivityUpperThreshold
+  ]);
+
+
   if (loading) {
     return <StyledSurface className="flex flex-col h-[100%] justify-center">
       <ActivityIndicator animating={true} size="large"></ActivityIndicator>
@@ -111,14 +159,16 @@ export default function Index() {
 
   const toggleHeartbeatMarker = () => {
     setShowHeartbeatMarker(!showHeartbeatMarker);
+    saveData() //Handles changes to sliders
   }
+
 
   return (
     <StyledSurface className="flex-grow flex">
       <StyledSurface elevation={0} mode="flat" className="flex flex-row justify-between items-center">
         <StyledText className="" variant='displayLarge'
                     style={{backgroundColor: theme.colors.elevation.level2}}>Profile</StyledText>
-          <StyledIconButton icon="cog" animated={true} className="" onPress={() => router.push("/modals/modal")}/>
+        <StyledIconButton icon="cog" animated={true} className="" onPress={() => router.push("/modals/modal")}/>
       </StyledSurface>
       <StyledButton mode="outlined" onPress={async () => {
         let result = await WebBrowser.openBrowserAsync(fitbitLink)
@@ -169,6 +219,10 @@ export default function Index() {
             enableLabel={showHeartbeatMarker}
             onValuesChangeStart={toggleHeartbeatMarker}
             onValuesChangeFinish={toggleHeartbeatMarker}
+            onValuesChange={values => {
+              setHeartbeatLowerThreshold(values[0])
+              setHeartbeatUpperThreshold(values[1])
+            }}
           />
           <StyledText
             className="mr-3 mt-3"
@@ -212,6 +266,10 @@ export default function Index() {
             enableLabel={showHeartbeatMarker}
             onValuesChangeStart={toggleHeartbeatMarker}
             onValuesChangeFinish={toggleHeartbeatMarker}
+            onValuesChange={(values: number[]) => {
+              setStepsLowerThreshold(values[0])
+              setStepsUpperThreshold(values[1])
+            }}
           />
           <StyledText
             className="mr-3 mt-3"
@@ -249,9 +307,13 @@ export default function Index() {
           <StyledMultiSlider
             min={1}
             max={30}
+            values={[noActivityUpperThreshold]}
             enableLabel={showHeartbeatMarker}
             onValuesChangeStart={toggleHeartbeatMarker}
             onValuesChangeFinish={toggleHeartbeatMarker}
+            onValuesChange={(values: number[]) => {
+              setNoActivityUpperThreshold(values[0])
+            }}
           />
         </StyledSurface>
         <StyledSurface className="my-5 h-[200] bg-transparent">

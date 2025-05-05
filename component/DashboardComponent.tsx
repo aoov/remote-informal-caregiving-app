@@ -74,8 +74,8 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
       const heartSnap = await getDoc(heartRef)
       if(heartSnap.exists()){
         setAvgHR(heartSnap.data().averageHR)
-        setHrLow(heartSnap.data().averageMin)
-        setHrHigh(heartSnap.data().averageMax)
+        setHrLow(heartSnap.data().lowestHR)
+        setHrHigh(heartSnap.data().highestHR)
       }else{
         console.log("No heart rate found")
       }

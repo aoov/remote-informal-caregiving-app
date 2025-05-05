@@ -149,6 +149,43 @@ exports.fitbitSubscription = onRequest(async (request, response) => {
   }
 });
 
+const sendAlerts = async (userID: string, name: string,
+  type: string, threshold: number,
+  observed: number) => {
+  const alert = {
+    userID: userID,
+    name: name,
+    type: type,
+    threshold: threshold,
+    observed: observed,
+  };
+  const userDoc = await admin.firestore().collection("users").doc(userID).get();
+  const data = userDoc.data();
+  if (data) {
+    const list = data.friends || [];
+    for (const item of list) {
+      const friendDoc = await admin.firestore()
+        .collection("users").doc(item).get();
+      if (friendDoc.exists) {
+        await Promise.all(list.map(async (item:string) => {
+          const friendDoc = await admin.firestore()
+            .collection("users").doc(item).get();
+          if (friendDoc.exists) {
+            try {
+              await firestore.collection("users")
+                .doc(item).collection("alerts").add(alert);
+              logger.info("Alert sent to " + item + " from " + userID);
+            } catch (err) {
+              logger.error("Failed to send alert to " + item + ": " + err);
+            }
+          }
+        }));
+      }
+    }
+  }
+};
+
+
 exports.updateSteps = onCall(async (request) => {
   try {
     const requester = request.data.requester || "SYSTEM";
@@ -213,7 +250,7 @@ exports.updateHeart = onCall(async (request) => {
       throw new Error("Fitbit access token not found");
     }
 
-    logger.info("Received update steps from " +
+    logger.info("Received update heart from " +
       requester + " for user: " + uid);
     // Call for the data
     const endpoint = "https://api.fitbit.com/1/user" +
@@ -229,74 +266,64 @@ exports.updateHeart = onCall(async (request) => {
     // Update database
     logger.info(response);
 
-    interface HeartRateZone {
-      caloriesOut: number;
-      max: number;
+    type HeartRateZone = {
       min: number;
-      minutes: number;
+      max: number;
       name: string;
-    }
+    };
 
     if (response.status === 200) {
-      const heartData = response.data["activities-heart"][0];
-      const zones: HeartRateZone[] = heartData.value.heartRateZones;
+      const zones:HeartRateZone[] = response
+        .data["activities-heart"][0].value.heartRateZones;
+      const outOfRange:HeartRateZone | undefined = zones
+        .find((zone) => zone.name === "Out of Range");
+      const midpointOutOfRange = outOfRange ?
+        (outOfRange.min + outOfRange.max) / 2 : -1;
 
-      // 1. Get Resting Heart Rate (if available)
-      const restingHR = heartData.value.restingHeartRate || null;
+      const highestMax = Math.max(...zones.map((zone) => zone.max));
+      const lowestMin = Math.min(...zones.map((zone) => zone.min));
 
-      // 2. Calculate Time in Each Zone
-      const zoneSummary = zones.map((zone) => ({
-        name: zone.name,
-        minutes: zone.minutes,
-        calorieBurn: zone.caloriesOut,
-        range: `${zone.min}-${zone.max} bpm`,
-      }));
+      const docSnap = await firestore.
+        collection("users").doc(uid).collection("heartRate")
+        .doc(currentDate).get();
 
-      // 3. Calculate Weighted Average Heart Rate
-      const {
-        totalMinutes,
-        totalWeightedHR,
-        totalWeightedMin,
-        totalWeightedMax,
-      } = zones.reduce(
-        (acc, zone) => {
-          const zoneAvg = (zone.min + zone.max) / 2;
-          return {
-            totalMinutes: acc.totalMinutes + zone.minutes,
-            totalWeightedHR: acc.totalWeightedHR + zoneAvg * zone.minutes,
-            totalWeightedMin: acc.totalWeightedMin + zone.min * zone.minutes,
-            totalWeightedMax: acc.totalWeightedMax + zone.max * zone.minutes,
-          };
-        },
-        {
-          totalMinutes: 0,
-          totalWeightedHR: 0,
-          totalWeightedMin: 0,
-          totalWeightedMax: 0, // Initial value
+      const writeDoc = async (averageHR:number
+        , highestHR:number, lowestHR:number) => {
+        await firestore.collection("users").doc(uid).collection("heartRate")
+          .doc(currentDate)
+          .set({
+            averageHR: averageHR,
+            highestHR: highestHR,
+            lowestHR: lowestHR,
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+          });
+      };
+      if (!docSnap.exists) {
+        // If it doesnt exist, make it
+        await writeDoc(midpointOutOfRange, highestMax, lowestMin);
+      } else if (docSnap.exists) {
+        const data = docSnap.data();
+        if (data) {
+          // If it exists then check previous values and send alert if needed
+          const lastLow = data.lowestHR;
+          const lastHigh = data.highestHR;
+          if (userData.heartAlerts) {
+            const thresholds:number[] = userData.heartThresholds;
+            if (lowestMin < lastLow) {
+              if (lowestMin < thresholds[0]) {
+                await sendAlerts(uid, userData.displayName,
+                  "heartLow", thresholds[0], lowestMin);
+              }
+            }
+            if (highestMax > lastHigh) {
+              if (highestMax > thresholds[1]) {
+                await sendAlerts(uid, userData.displayName,
+                  "heartHigh", thresholds[1], highestMax);
+              }
+            }
+          }
         }
-      );
-
-      const avgHR = totalMinutes > 0 ?
-        Math.round(totalWeightedHR / totalMinutes) :
-        null;
-
-      const weightedMinAverage = totalMinutes > 0 ?
-        totalWeightedMin / totalMinutes : null;
-      const weightedMaxAverage = totalMinutes > 0 ?
-        totalWeightedMax / totalMinutes : null;
-
-      await firestore.collection("users").doc(uid).collection("heartRate")
-        .doc(currentDate)
-        .set({
-          restingHR: restingHR,
-          averageHR: avgHR,
-          averageMin: weightedMinAverage,
-          averageMax: weightedMaxAverage,
-          zones: zoneSummary,
-          totalActiveMinutes: zones.reduce((sum, zone) =>
-            sum + (zone.name !== "Out of Range" ? zone.minutes : 0), 0),
-          lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        });
+      }
     }
   } catch (error) {
     logger.error(error);

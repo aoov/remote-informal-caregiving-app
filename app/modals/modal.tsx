@@ -32,16 +32,12 @@ export default function SettingsPage() {
     if (!auth.currentUser){
       return
     }
-    await setDoc(doc(collection(db, `users`, auth.currentUser.uid, "alerts")), {
-      userID: "Test",
-      name: "Tom",
-      type: "request",
-      date: Timestamp.fromDate(new Date(2025, 3, 24, 9, 21, 0, 0)),
-      threshold: 4000,
-      observed: 12000,
-      read: false,
-    });
-    console.log("done")
+    const updateHeart = httpsCallable(functions, "updateHeart");
+    await updateHeart({
+      requester: auth.currentUser.uid,
+      userID: auth.currentUser.uid,
+    })
+    console.log("updateHeart called");
   }
 
 
