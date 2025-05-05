@@ -51,6 +51,14 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
       } catch (error) {
         console.log(error);
       }
+      const docRef2 = doc(db, "users", userID)
+      try {
+        await updateDoc(docRef2, {
+          friends: arrayUnion(auth.currentUser.uid)
+        })
+      } catch (error) {
+        console.log(error);
+      }
       deleteAlert()
     }
   }
