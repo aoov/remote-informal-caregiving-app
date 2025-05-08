@@ -7,7 +7,7 @@ import {useState} from "react";
 import {auth, db} from "@/shared/firebase-config"
 import {router} from "expo-router"
 import {View} from "react-native";
-import {getDoc} from "firebase/firestore";
+import {getDoc, onSnapshot, Timestamp} from "firebase/firestore";
 import {doc} from "@firebase/firestore";
 
 const StyledButton = styled(Button)
@@ -52,36 +52,98 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
     setFavorite(!favorite);
   }
 
+  const getTimeAgo = (timestamp: Timestamp) => {
+    const now = new Date();
+    const time = timestamp.toDate(); // Convert Firebase Timestamp to JS Date
+    const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
+
+    const intervals = [
+      {label: 'year', seconds: 31536000},
+      {label: 'month', seconds: 2592000},
+      {label: 'day', seconds: 86400},
+      {label: 'hour', seconds: 3600},
+      {label: 'minute', seconds: 60},
+      {label: 'second', seconds: 1},
+    ];
+
+    for (const interval of intervals) {
+      const count = Math.floor(diffInSeconds / interval.seconds);
+      if (count >= 1) {
+        return `${count} ${interval.label}${count > 1 ? 's' : ''} ago`;
+      }
+    }
+    return 'just now';
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const currentUserRef = doc(db, "users", userID)
       const userSnap = await getDoc(currentUserRef)
       if (userSnap.exists()) {
         setName(userSnap.data().displayName)
+        const timestamp: Timestamp = userSnap.data().lastQuery
+        if (timestamp) {
+          setSubtitle("Last Updated: " + getTimeAgo(timestamp))
+        }
       } else {
         return;
       }
 
       const stepsRef = doc(db, "users", userID, "steps", currentDate);
       const stepsSnap = await getDoc(stepsRef)
-      if(stepsSnap.exists()){
+      if (stepsSnap.exists()) {
         setSteps(stepsSnap.data().value)
-      }else{
+      } else {
         console.log("No steps found")
       }
 
       const heartRef = doc(db, "users", userID, "heartRate", currentDate);
       const heartSnap = await getDoc(heartRef)
-      if(heartSnap.exists()){
+      if (heartSnap.exists()) {
         setAvgHR(heartSnap.data().averageHR)
         setHrLow(heartSnap.data().lowestHR)
         setHrHigh(heartSnap.data().highestHR)
-      }else{
+      } else {
         console.log("No heart rate found")
       }
     }
     fetchData()
   }, []);
+
+  //Handles real-time updates
+  useEffect(() => {
+    const ref = doc(db, "users", userID)
+    const unsubscribeParent = onSnapshot(ref, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data?.lastQuery) {
+          setSubtitle("Last Updated: " + getTimeAgo(data.lastQuery));
+        }
+      }
+    })
+
+    const unsubscribeHeart = onSnapshot(doc(db, "users", userID, "heartRate", currentDate), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setAvgHR(data.averageHR)
+        setHrLow(data.lowestHR)
+        setHrHigh(data.highestHR)
+      }
+    })
+
+    const unsubscribeSteps = onSnapshot(doc(db, "users", userID, "steps", currentDate), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSteps(data.value)
+      }
+    })
+
+    return () => {
+      unsubscribeParent()
+      unsubscribeHeart()
+      unsubscribeSteps()
+    };
+  }, [userID]);
 
 
   return (
