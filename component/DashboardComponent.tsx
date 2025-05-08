@@ -148,7 +148,7 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
 
   return (
     <TouchableRipple onPress={handleCardPress}>
-      <StyledCard mode="elevated" className="mx-3 mb-5">
+      <StyledCard mode="elevated" className="mx-3 mb-3">
         <StyledView className="flex-row items-center">
           <StyledCardTitle title={name} subtitle={subtitle}
                            left={(props) =>
@@ -169,6 +169,12 @@ export const DashboardComponent: React.FC<Props> = ({userID}) => {
                 <StyledIcon className="pr-3" source="shoe-print" size={20}/>
                 <StyledText className="ml-3">{steps} Steps</StyledText>
             </StyledView>
+            <StyledButton onPress={() => {
+              router.push({
+                pathname: "/modals/expandedProfile",
+                params: { x: userID },
+              });
+            }}>More Info</StyledButton>
         </StyledCardContent>}
       </StyledCard>
     </TouchableRipple>

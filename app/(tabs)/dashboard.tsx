@@ -1,4 +1,15 @@
-import {Button, Card, Checkbox, Chip, Divider, Icon, Searchbar, Surface, Text} from 'react-native-paper'
+import {
+  ActivityIndicator,
+  Button,
+  Card,
+  Checkbox,
+  Chip,
+  Divider,
+  Icon,
+  Searchbar,
+  Surface,
+  Text
+} from 'react-native-paper'
 import {router, useRouter} from 'expo-router';
 import {styled} from "nativewind";
 import AvatarIcon from "react-native-paper/src/components/Avatar/AvatarIcon";
@@ -33,6 +44,7 @@ type PrivacyToggleFields = {
   address: boolean;
   phoneNumber: boolean;
   physicianInfo: boolean;
+  medication: boolean;
 };
 
 export default function Dashboard() {
@@ -44,7 +56,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
   const {x} = useLocalSearchParams();
-
+  const [loading, setLoading] = useState(true);
 
   const [privacyToggles, setPrivacyToggles] = useState<PrivacyToggleFields>({
     heartRate: true,
@@ -52,8 +64,10 @@ export default function Dashboard() {
     email: true,
     phoneNumber: true,
     address: true,
-    physicianInfo: true
+    physicianInfo: true,
+    medication: true
   });
+
   const togglePrivacy = (field: keyof PrivacyToggleFields) => {
     setPrivacyToggles(prev => ({
       ...prev,
@@ -67,14 +81,41 @@ export default function Dashboard() {
     email: 'Show Email',
     address: 'Show Address',
     phoneNumber: 'Show Phone Number',
-    physicianInfo: 'Show Physician Info'
+    physicianInfo: 'Show Physician Info',
+    medication: 'Show Medication'
   };
 
-  const isWithin30Seconds = (timestamp: Timestamp): boolean => {
+  useEffect(() => {
+    if(!loading){
+      savePrivacySettings()
+    }
+  }, [privacyToggles]);
+
+  const savePrivacySettings = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      router.push('/')
+      return;
+    }
+    const currentUserRef = doc(db, "users", currentUser.uid)
+    await updateDoc(currentUserRef, {
+      privacyToggles: {
+        heartRate: privacyToggles.heartRate,
+        steps: privacyToggles.steps,
+        email: privacyToggles.email,
+        address: privacyToggles.address,
+        phoneNumber: privacyToggles.phoneNumber,
+        physicianInfo: privacyToggles.physicianInfo,
+        medication: privacyToggles.medication
+      }
+    })
+  }
+
+  const isWithinSeconds = (timestamp: Timestamp, seconds: number): boolean => {
     const now = Date.now(); // current time in ms
     const targetTime = timestamp.toMillis(); // Firestore timestamp to ms
     const difference = Math.abs(now - targetTime);
-    return difference <= 30 * 1000; // 30 seconds in milliseconds
+    return difference <= (1000 * seconds); //seconds in milliseconds
   }
 
   // Gets friends list
@@ -95,8 +136,12 @@ export default function Dashboard() {
       list.forEach((friend: string) => {
         updateData(friend);
       });
-
       setFriendsList(list)
+
+      console.log("Fetching privacy toggles");
+      if (userSnap.data().privacyToggles){
+         setPrivacyToggles(userSnap.data().privacyToggles)
+      }
     } else {
       return;
     }
@@ -114,6 +159,7 @@ export default function Dashboard() {
     } else {
       console.log("No heart rate found")
     }
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -148,11 +194,9 @@ export default function Dashboard() {
       }
       const requester = auth.currentUser.uid;
       const lastQuery = userSnap.data().lastQuery
-      if ((lastQuery && isWithin30Seconds(lastQuery))) {
+      if ((lastQuery && isWithinSeconds(lastQuery, 60))) {
         return;
       }
-
-
       try {
         const updateSteps = httpsCallable(functions, "updateSteps");
         await updateSteps({
@@ -207,22 +251,34 @@ export default function Dashboard() {
                 key={field}
                 selected={privacyToggles[field]}
                 showSelectedOverlay={privacyToggles[field]}
+                avatar={privacyToggles[field] && <Icon size={20} source="check-bold" color="green"/>}
                 onPress={() => togglePrivacy(field)}
+                showSelectedCheck={false}
               >
                 {toggleLabels[field]}
               </StyledChip>
             ))}
           </StyledView>
         </StyledCard>
-
         <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
                       onPress={() => router.push("/modals/add")}
         >Add Friends</StyledButton>
-
+        <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
+                      onPress={() => {
+                        router.push({
+                          pathname: "/modals/expandedProfile",
+                          params: { x: "lWoYiOEtzhSeTASgYkcPQp4d5za2" },
+                        });
+                      }}
+        >test</StyledButton>
         <StyledView className="mb-2 pt-2">
-          {friendsList.map((friend: string, i) => (
-            <StyledDashboardComponent className="" userID={friend} key={i}/>
-          ))}
+          {loading ? (
+            <ActivityIndicator size="large" />
+          ) : (
+            friendsList.map((friend: string, i) => (
+              <StyledDashboardComponent className="" userID={friend} key={i} />
+            ))
+          )}
         </StyledView>
         <StyledSurface className="my-5 h-[300] bg-transparent">
           <StyledView></StyledView>

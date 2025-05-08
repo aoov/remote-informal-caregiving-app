@@ -19,6 +19,7 @@ import {getDoc, updateDoc} from 'firebase/firestore';
 import {Link, router} from "expo-router";
 import {doc, setDoc} from "@firebase/firestore";
 import * as WebBrowser from 'expo-web-browser'
+import {set} from "@firebase/database";
 
 const StyledSurface = styled(Surface)
 const StyledIcon = styled(Icon)
@@ -78,7 +79,8 @@ export default function Index() {
         stepAlerts: enableStepsAlert,
         heartThresholds: [heartbeatLowerThreshold, heartbeatUpperThreshold],
         stepThresholds: [stepsLowerThreshold, stepsUpperThreshold],
-        activityThreshold: [noActivityUpperThreshold]
+        activityThreshold: [noActivityUpperThreshold],
+        timezone: timezone,
       })
     } catch (err) {
       console.error(err)
@@ -120,6 +122,7 @@ export default function Index() {
           setPhone(userSnap.data().phone)
           setPhysicianName(userSnap.data().physicianName)
           setPhysicianNumber(userSnap.data().physicianNumber)
+          setEmail(userSnap.data().email)
           setStepsLowerThreshold(userSnap.data().stepThresholds[0])
           setStepsUpperThreshold(userSnap.data().stepThresholds[1])
           setHeartbeatUpperThreshold(userSnap.data().heartThresholds[1])
@@ -133,6 +136,10 @@ export default function Index() {
         } else {
           console.log('No such document!');
         }
+        const temp = Localization.getCalendars()[0].timeZone
+        if(temp) {
+          setTimezone(temp.toString())
+        }
       } catch (error) {
         console.error(error)
       } finally {
@@ -142,6 +149,8 @@ export default function Index() {
     fetchData()
   }, []);
 
+
+  // TODO Change to only save on finish
   useEffect(() => {
     saveData()
   }, [address, email, name, phone, physicianName, physicianNumber,
@@ -177,12 +186,11 @@ export default function Index() {
       <StyledScrollView className="flex flex-grow" style={{backgroundColor: theme.colors.surfaceVariant}}
                         scrollEnabled={!showHeartbeatMarker}>
         <StyledTextInput mode="flat" label="Timezone"
-                         value={Localization.getCalendars()[0].timeZone?.toString()} onPress={() => {
-        }}/>
+                         value={timezone}/>
         <StyledTextInput mode="flat" label="Full Name" value={name} onChangeText={setName}/>
         <StyledTextInput mode="flat" label="Address" value={address} onChangeText={setAddress}/>
         <StyledTextInput mode="flat" label="Phone Number" value={phone} onChangeText={setPhone}/>
-        <StyledTextInput mode="flat" label="Email Address" value={email} onChangeText={setEmail}/>
+        <StyledTextInput mode="flat" label="Email Address" value={email} onChangeText={setEmail} editable={false}/>
         <StyledTextInput mode="flat" label="Physician Name" value={physicianName}
                          onChangeText={setPhysicianName}/>
         <StyledTextInput mode="flat" label="Physician Number" value={physicianNumber}
