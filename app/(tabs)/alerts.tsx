@@ -112,11 +112,11 @@ export default function Index() {
     <StyledSurface className="flex flex-1 justify-center align-middle h-[90%] pt-3">
       <StyledScrollView className="h-[100%]" overScrollMode="always" bouncesZoom={true}>
         {categorizedAlerts.today.length == 0
-        && categorizedAlerts.yesterday.length == 0
-        && categorizedAlerts.older.length == 0 && (
-        <StyledView className=" h-[80%] text-center justify-center items-center p-10">
-          <StyledText variant="displayLarge">No Alerts Found</StyledText>
-        </StyledView> )}
+          && categorizedAlerts.yesterday.length == 0
+          && categorizedAlerts.older.length == 0 && (
+            <StyledView className=" h-[80%] text-center justify-center items-center p-10">
+              <StyledText variant="displayLarge">No Alerts Found</StyledText>
+            </StyledView>)}
 
         {categorizedAlerts.today.length > 0 && (
           <StyledView className="px-3">
@@ -159,17 +159,18 @@ export default function Index() {
             <StyledText variant="headlineMedium">Older</StyledText>
             <StyledDivider className="mb-3 mt-1" bold={true}/>
             {categorizedAlerts.older.map((alert) => (
-              <AlertComponent
-                key={alert.alertID}
-                name={alert.name}
-                userID={alert.userID}
-                alertID={alert.alertID}
-                type={alert.type}
-                date={alert.date}
-                threshold={alert.threshold}
-                observed={alert.observed}
-                read={alert.read}
-              />
+              <StyledView className="mb-2" key={alert.alertID}>
+                <AlertComponent
+                  name={alert.name}
+                  userID={alert.userID}
+                  alertID={alert.alertID}
+                  type={alert.type}
+                  date={alert.date}
+                  threshold={alert.threshold}
+                  observed={alert.observed}
+                  read={alert.read}
+                />
+              </StyledView>
             ))}
           </StyledView>)}
         <StyledSurface className="my-5 h-[200] bg-transparent">
