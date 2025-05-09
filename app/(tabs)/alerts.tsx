@@ -1,11 +1,11 @@
 import React, {useEffect} from 'react';
-import {Avatar, Button, Card, Divider, Icon, IconButton, Surface, Text} from 'react-native-paper';
+import {ActivityIndicator, Avatar, Button, Card, Divider, Icon, IconButton, Surface, Text} from 'react-native-paper';
 import {TouchableRipple} from 'react-native-paper';
 import {styled} from "nativewind";
 import {useState} from "react";
 import {auth, db} from "@/shared/firebase-config"
 import {router} from "expo-router"
-import {ScrollView, View} from "react-native";
+import {RefreshControl, ScrollView, View} from "react-native";
 import {collection, getDoc, getDocs, Timestamp} from "firebase/firestore";
 import {doc} from "@firebase/firestore";
 import {AlertComponent} from "@/component/AlertComponent";
@@ -46,6 +46,9 @@ export default function Index() {
     yesterday: [],
     older: []
   });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState(false);
+
 
   const getAlerts = async () => {
     try {
@@ -102,18 +105,34 @@ export default function Index() {
       setAlertsList([]);
       setCategorizedAlerts({today: [], yesterday: [], older: []});
     }
+
+    setLoading(false)
   }
 
   useEffect(() => {
     getAlerts();
   }, []);
 
+  const refresh = async () => {
+    setRefreshing(true);
+    getAlerts().finally(() => setRefreshing(false));
+  }
+
   return (
     <StyledSurface className="flex flex-1 justify-center align-middle h-[90%] pt-3">
-      <StyledScrollView className="h-[100%]" overScrollMode="always" bouncesZoom={true}>
+      {loading && <StyledView className="pt-[50%] justify-center items-center">
+          <ActivityIndicator size="large" />
+      </StyledView>}
+
+
+
+      <StyledScrollView className="h-[100%]" overScrollMode="always" bouncesZoom={true} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh}/>
+      }>
+
         {categorizedAlerts.today.length == 0
           && categorizedAlerts.yesterday.length == 0
-          && categorizedAlerts.older.length == 0 && (
+          && categorizedAlerts.older.length == 0 && !loading && (
             <StyledView className=" h-[80%] text-center justify-center items-center p-10">
               <StyledText variant="displayLarge">No Alerts Found</StyledText>
             </StyledView>)}
