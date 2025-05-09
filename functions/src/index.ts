@@ -4,10 +4,85 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import axios from "axios";
 
+
 admin.initializeApp();
 const firestore = admin.firestore();
 
 // https://firebase.google.com/docs/functions/typescript
+
+// Checks daily for activity and steps
+exports.dailyChecker = onSchedule("every 24 hours", async () => {
+  logger.info("Running daily checks...");
+  try {
+    const usersSnapshot = await firestore.collection("users").get();
+    // Loops through each user
+    const checkTasks = usersSnapshot.docs.map(async (doc) => {
+      const userID = doc.id;
+      const stepAlerts = doc.data().stepAlerts;
+      const activityAlerts = doc.data().activityAlerts;
+      const activityThreshold = doc.data().activityThreshold[0];
+      const lastQuery: admin.firestore.Timestamp = doc.data().lastQuery;
+      const currentDate = new Date().toISOString().split("T")[0];
+      const displayName = doc.data().displayName;
+      if (stepAlerts) { // If user has alerts turned on then check the steps
+        const now = admin.firestore.Timestamp.now().toMillis();
+        const stepThresholds = doc.data().stepThresholds;
+        if (lastQuery) {
+          const diffInMinutes = (now - lastQuery.toMillis()) / (1000 * 60);
+          if (diffInMinutes <= 30) {
+            // If the difference is greater than
+            // 30 minutes, try to update their steps
+            await updateSteps("SYSTEM", userID);
+          }
+        }
+        // Check the value
+        const docSnap = await firestore.collection("users")
+          .doc(doc.id)
+          .collection("steps")
+          .doc(currentDate).get();
+        // If it exists, read the value and determine if alert is to be sent
+        // Don't send if no data found
+        if (docSnap.exists) {
+          const data = docSnap.data();
+          if (data) {
+            const value = data.value;
+            if (value > stepThresholds[1]) {
+              await sendAlerts(userID, displayName,
+                "stepsHigh", stepThresholds[1], value);
+            } else if (value < stepThresholds[0]) {
+              await sendAlerts(userID, displayName,
+                "stepsLow", stepThresholds[0], value);
+            }
+          }
+        }
+      }
+      if (activityAlerts) {
+        let daysWithoutActivity: number = doc.data().daysWithoutActivity ?? 0;
+        const stepsSnap = await firestore.collection("users")
+          .doc(doc.id).collection("steps")
+          .doc(currentDate)
+          .get();
+        if (!stepsSnap.exists) {
+          const heartSnap = await firestore.collection("users")
+            .doc(doc.id).collection("heart")
+            .doc(currentDate)
+            .get();
+          if (!heartSnap.exists) {
+            daysWithoutActivity++;
+          }
+        }
+        if (daysWithoutActivity >= activityThreshold) {
+          await sendAlerts(userID, displayName,
+            "activity", activityThreshold, daysWithoutActivity);
+        }
+      }
+      await Promise.all(checkTasks);
+      logger.info("Finished all check tasks");
+    });
+  } catch (error) {
+    logger.error(error);
+  }
+});
 
 exports.fitbitRefresher = onSchedule("every 6 hours", async () => {
   logger.info("Running fitbit refresher...");
@@ -42,6 +117,7 @@ exports.fitbitRefresher = onSchedule("every 6 hours", async () => {
     logger.error(error);
   }
 });
+
 
 exports.fitbitCallback = onRequest(async (request, response) => {
   try {
@@ -159,37 +235,32 @@ const sendAlerts = async (userID: string, name: string,
     threshold: threshold,
     observed: observed,
   };
+  logger.info("Sending alert: " + alert);
   const userDoc = await admin.firestore().collection("users").doc(userID).get();
   const data = userDoc.data();
   if (data) {
     const list = data.friends || [];
-    for (const item of list) {
-      const friendDoc = await admin.firestore()
-        .collection("users").doc(item).get();
-      if (friendDoc.exists) {
-        await Promise.all(list.map(async (item:string) => {
-          const friendDoc = await admin.firestore()
-            .collection("users").doc(item).get();
-          if (friendDoc.exists) {
-            try {
-              await firestore.collection("users")
-                .doc(item).collection("alerts").add(alert);
-              logger.info("Alert sent to " + item + " from " + userID);
-            } catch (err) {
-              logger.error("Failed to send alert to " + item + ": " + err);
-            }
+
+    await Promise.all(
+      list.map(async (friendID: string) => {
+        const friendDoc = await admin.firestore()
+          .collection("users").doc(friendID).get();
+        if (friendDoc.exists) {
+          try {
+            await admin.firestore().collection("users")
+              .doc(friendID).collection("alerts").add(alert);
+            logger.info(`Alert sent to ${friendID} from ${userID}`);
+          } catch (err) {
+            logger.error(`Failed to send alert to ${friendID}: ${err}`);
           }
-        }));
-      }
-    }
+        }
+      }));
   }
 };
 
-
-exports.updateSteps = onCall(async (request) => {
+const updateSteps = async (requester: string, userID: string) => {
   try {
-    const requester = request.data.requester || "SYSTEM";
-    const uid = request.data.userID;
+    const uid = userID;
     const currentDate = new Date().toISOString().split("T")[0];
     // Pull data from user document
     const userDoc = await admin.firestore().collection("users").doc(uid).get();
@@ -202,7 +273,6 @@ exports.updateSteps = onCall(async (request) => {
     if (!accessToken) {
       throw new Error("Fitbit access token not found");
     }
-
     logger.info("Received update steps from " +
       requester + " for user: " + uid);
     // Call for the data
@@ -221,6 +291,9 @@ exports.updateSteps = onCall(async (request) => {
     if (response.status === 200) {
       const [{value}] = response.data["activities-steps"];
       console.log("Value: " + value);
+      if (value == 0) {
+        return;
+      }
       await firestore.collection("users").doc(uid).collection("steps")
         .doc(currentDate)
         .set({
@@ -231,6 +304,10 @@ exports.updateSteps = onCall(async (request) => {
   } catch (error) {
     logger.error(error);
   }
+};
+
+exports.updateSteps = onCall(async (request) => {
+  await updateSteps((request.data.requester || "SYSTEM"), request.data.userID);
 });
 
 exports.updateHeart = onCall(async (request) => {
@@ -273,9 +350,9 @@ exports.updateHeart = onCall(async (request) => {
     };
 
     if (response.status === 200) {
-      const zones:HeartRateZone[] = response
+      const zones: HeartRateZone[] = response
         .data["activities-heart"][0].value.heartRateZones;
-      const outOfRange:HeartRateZone | undefined = zones
+      const outOfRange: HeartRateZone | undefined = zones
         .find((zone) => zone.name === "Out of Range");
       const midpointOutOfRange = outOfRange ?
         (outOfRange.min + outOfRange.max) / 2 : -1;
@@ -283,12 +360,12 @@ exports.updateHeart = onCall(async (request) => {
       const highestMax = Math.max(...zones.map((zone) => zone.max));
       const lowestMin = Math.min(...zones.map((zone) => zone.min));
 
-      const docSnap = await firestore.
-        collection("users").doc(uid).collection("heartRate")
+      const docSnap = await firestore.collection("users").doc(uid)
+        .collection("heartRate")
         .doc(currentDate).get();
 
-      const writeDoc = async (averageHR:number
-        , highestHR:number, lowestHR:number) => {
+      const writeDoc = async (averageHR: number
+        , highestHR: number, lowestHR: number) => {
         await firestore.collection("users").doc(uid).collection("heartRate")
           .doc(currentDate)
           .set({
@@ -308,7 +385,7 @@ exports.updateHeart = onCall(async (request) => {
           const lastLow = data.lowestHR;
           const lastHigh = data.highestHR;
           if (userData.heartAlerts) {
-            const thresholds:number[] = userData.heartThresholds;
+            const thresholds: number[] = userData.heartThresholds;
             if (lowestMin < lastLow) {
               if (lowestMin < thresholds[0]) {
                 await sendAlerts(uid, userData.displayName,
