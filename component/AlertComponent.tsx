@@ -40,7 +40,6 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
   const [invalidNumber, setInvalidNumber] = useState(false);
   const [deleted, setDeleted] = useState(false);
 
-
   const addUser = async () => {
     if (auth.currentUser) {
       const docRef = doc(db, "users", auth.currentUser.uid)
@@ -59,7 +58,7 @@ export const AlertComponent: React.FC<Props> = ({userID, read, name, alertID, ty
       } catch (error) {
         console.log(error);
       }
-      deleteAlert()
+      await deleteAlert()
     }
   }
 
