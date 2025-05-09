@@ -263,14 +263,6 @@ export default function Dashboard() {
         <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
                       onPress={() => router.push("/modals/add")}
         >Add Friends</StyledButton>
-        <StyledButton className="justify-center flex-1 p-2 mx-2 my-1" mode="contained"
-                      onPress={() => {
-                        router.push({
-                          pathname: "/modals/expandedProfile",
-                          params: { x: "lWoYiOEtzhSeTASgYkcPQp4d5za2" },
-                        });
-                      }}
-        >test</StyledButton>
         <StyledView className="mb-2 pt-2">
           {loading ? (
             <ActivityIndicator size="large" />
